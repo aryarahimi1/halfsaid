@@ -1,0 +1,41 @@
+@import 'tailwindcss';
+
+/* Halfsaid — calm, high-contrast, low-cognitive-load AAC palette.
+   Large targets, no timers, generous spacing. Designed for the cognition it serves. */
+@theme {
+	--color-ink: #11242f;
+	--color-slate: #41606f;
+	--color-calm: #f4f7f8;
+	--color-paper: #ffffff;
+	--color-accent: #0e7c86;
+	--color-accent-strong: #0a5d65;
+	--color-go: #1f9d6b;
+	--color-go-strong: #157a52;
+	--font-display: 'Georgia', 'Iowan Old Style', serif;
+}
+
+:root {
+	color-scheme: light;
+}
+
+html,
+body {
+	height: 100%;
+}
+
+body {
+	background: var(--color-calm);
+	color: var(--color-ink);
+	-webkit-tap-highlight-color: transparent;
+	overscroll-behavior: none;
+}
+
+/* Respect users who ask for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.001ms !important;
+		transition-duration: 0.001ms !important;
+	}
+}
