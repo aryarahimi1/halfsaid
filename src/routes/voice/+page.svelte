@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { profileStore } from '$lib/profile.svelte';
 	import { speak, initBrowserVoice } from '$lib/voice';
+	import { API_BASE } from '$lib/api';
 
 	let available = $state(false); // is voice cloning configured (ElevenLabs key present)?
 	let file = $state<File | null>(null);
@@ -22,7 +23,7 @@
 		profileStore.ensureProfile();
 		initBrowserVoice();
 		try {
-			const res = await fetch('/api/voice');
+			const res = await fetch(`${API_BASE}/api/voice`);
 			const data = await res.json();
 			available = !!data.available;
 		} catch {
@@ -65,7 +66,7 @@
 			form.append('file', file);
 			form.append('name', (profileStore.active?.name?.trim() || 'My') + ' — own voice');
 			form.append('consent', String(consent));
-			const res = await fetch('/api/voice', { method: 'POST', body: form });
+			const res = await fetch(`${API_BASE}/api/voice`, { method: 'POST', body: form });
 			const data = await res.json();
 			if (data.ok && data.voiceId) {
 				profileStore.updateActive((p) => {

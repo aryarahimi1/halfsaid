@@ -5,6 +5,7 @@
 	import { profileStore } from '$lib/profile.svelte';
 	import { speak, initBrowserVoice } from '$lib/voice';
 	import { createListener, listenSupported, type Listener } from '$lib/listen';
+	import { API_BASE } from '$lib/api';
 	import FirstRunGate from '$lib/onboarding/FirstRunGate.svelte';
 
 	let fragments = $state<string[]>([]);
@@ -131,7 +132,7 @@
 		loading = true;
 		candidates = [];
 		try {
-			const res = await fetch('/api/reconstruct', {
+			const res = await fetch(`${API_BASE}/api/reconstruct`, {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
 				body: JSON.stringify({

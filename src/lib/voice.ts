@@ -8,6 +8,7 @@
 
 import { browser } from '$app/environment';
 import type { VoicePersona } from './profile';
+import { API_BASE } from './api';
 
 let cachedVoice: SpeechSynthesisVoice | null = null;
 
@@ -115,7 +116,7 @@ async function speakCloned(text: string, voiceId: string): Promise<boolean> {
 	void audio.play().catch(() => {});
 
 	try {
-		const res = await fetch('/api/speak', {
+		const res = await fetch(`${API_BASE}/api/speak`, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ text, voiceId })

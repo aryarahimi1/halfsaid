@@ -1,0 +1,18 @@
+# Halfsaid API on Fly. `app` must be globally unique — `fly launch` will let you
+# rename if "halfsaid-api" is taken. Scales to zero when idle (auto_stop_machines).
+app = "halfsaid-api"
+primary_region = "iad"
+
+[build]
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
