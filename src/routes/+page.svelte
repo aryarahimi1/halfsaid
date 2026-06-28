@@ -7,6 +7,7 @@
 	import { createListener, listenSupported, type Listener } from '$lib/listen';
 	import { API_BASE } from '$lib/api';
 	import AssembledSentence from '$lib/AssembledSentence.svelte';
+	import Intro from '$lib/Intro.svelte';
 	import FirstRunGate from '$lib/onboarding/FirstRunGate.svelte';
 
 	let fragments = $state<string[]>([]);
@@ -16,6 +17,9 @@
 	let loading = $state(false);
 	let source = $state<'ai' | 'fallback' | null>(null);
 	let spoken = $state<string | null>(null);
+
+	// First-run opener — shown once (then never), reopenable from the header.
+	let showIntro = $state(false);
 
 	// Partner mic. canListen is false on SSR + first paint (no window), set after
 	// mount, so the mic button appears without a hydration mismatch.
@@ -40,7 +44,21 @@
 		profileStore.load();
 		initBrowserVoice();
 		canListen = listenSupported();
+		try {
+			showIntro = localStorage.getItem('halfsaid:introSeen') !== 'true';
+		} catch {
+			// private mode — just don't show it
+		}
 	});
+
+	function dismissIntro() {
+		showIntro = false;
+		try {
+			localStorage.setItem('halfsaid:introSeen', 'true');
+		} catch {
+			// ignore
+		}
+	}
 
 	// Stop the mic if the component is torn down (e.g. navigating to /setup) so it
 	// never keeps recording with no UI left to stop it.
@@ -176,6 +194,10 @@
 	}
 </script>
 
+{#if showIntro}
+	<Intro onstart={dismissIntro} />
+{/if}
+
 <div class="mx-auto flex min-h-dvh max-w-2xl flex-col px-4 pb-10">
 	<!-- Header -->
 	<header class="flex items-baseline justify-between pt-5 pb-3">
@@ -186,6 +208,11 @@
 			<p class="mt-1 text-sm text-[var(--color-slate)]">Say what you already mean.</p>
 		</div>
 		<div class="flex items-center gap-2">
+			<button
+				class="inline-flex min-h-11 min-w-11 items-center justify-center rounded-full border border-[var(--color-slate)]/30 text-sm text-[var(--color-slate)] active:scale-95"
+				onclick={() => (showIntro = true)}
+				aria-label="What is this?">?</button
+			>
 			<button
 				class="inline-flex min-h-11 items-center rounded-full border border-[var(--color-slate)]/30 px-3 text-sm text-[var(--color-slate)] active:scale-95"
 				onclick={() => goto('/setup?edit=1')}
