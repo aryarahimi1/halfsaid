@@ -6,6 +6,7 @@
 	import { speak, initBrowserVoice } from '$lib/voice';
 	import { createListener, listenSupported, type Listener } from '$lib/listen';
 	import { API_BASE } from '$lib/api';
+	import AssembledSentence from '$lib/AssembledSentence.svelte';
 	import FirstRunGate from '$lib/onboarding/FirstRunGate.svelte';
 
 	let fragments = $state<string[]>([]);
@@ -295,43 +296,67 @@
 		</div>
 	</section>
 
-	<!-- Candidates: the words become a sentence. Tap to say it; ✕ to reject.
-	     Persistent status region so assistive tech announces loading + results. -->
+	<!-- The Bridge: your words become a sentence, assembling on screen.
+	     Persistent status region so assistive tech announces loading + the result. -->
 	<div class="mt-4" role="status" aria-live="polite">
 		{#if loading}
-			<div
-				class="animate-pulse rounded-2xl border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 p-5 text-lg text-[var(--color-slate)]"
-			>
-				Turning your words into a sentence…
+			<div class="rounded-2xl border border-[var(--color-accent)]/30 bg-[var(--color-accent)]/5 px-5 py-5">
+				<p class="text-lg text-[var(--color-slate)]">Reconstructing your words…</p>
+				<div class="think mt-3" aria-hidden="true"></div>
 			</div>
 		{:else if candidates.length}
-			<p class="px-1 text-sm font-medium text-[var(--color-slate)]">
-				{candidates.length} suggestion{candidates.length === 1 ? '' : 's'} ready — tap the one you mean;
-				it speaks aloud. Wrong? Tap ✕.
-			</p>
-			<div class="mt-3 space-y-3">
-				{#each candidates as c, i (i)}
-					<div
-						class="flex items-stretch gap-2 overflow-hidden rounded-2xl border border-[var(--color-accent)]/40 bg-[var(--color-paper)] shadow-sm"
-					>
-						<button
-							class="flex-1 px-5 py-5 text-left text-2xl leading-snug font-medium text-[var(--color-ink)] active:bg-[var(--color-accent)]/5"
-							onclick={() => say(c)}
-							aria-label={`Say: ${c}`}
-						>
-							{c}
-						</button>
-						<button
-							class="flex w-14 shrink-0 items-center justify-center border-l border-[var(--color-slate)]/15 text-xl text-[var(--color-slate)] active:bg-[var(--color-calm)]"
-							onclick={() => reject(i)}
-							aria-label={`Reject: ${c}`}>✕</button
-						>
-					</div>
-				{/each}
+			<!-- Primary: the sentence assembles, your words vs the AI's connective glue -->
+			<div
+				class="flex items-stretch gap-2 overflow-hidden rounded-2xl border border-[var(--color-accent)]/50 bg-[var(--color-paper)] shadow-sm"
+			>
+				<button
+					class="flex-1 px-5 py-6 text-left active:bg-[var(--color-accent)]/5"
+					onclick={() => say(candidates[0])}
+					aria-label={`Say: ${candidates[0]}`}
+				>
+					<span class="font-display text-3xl leading-snug tracking-tight">
+						{#key candidates[0]}
+							<AssembledSentence text={candidates[0]} {fragments} />
+						{/key}
+					</span>
+				</button>
+				<button
+					class="flex w-14 shrink-0 items-center justify-center self-stretch border-l border-[var(--color-slate)]/15 text-xl text-[var(--color-slate)] active:bg-[var(--color-calm)]"
+					onclick={() => reject(0)}
+					aria-label={`Reject: ${candidates[0]}`}>✕</button
+				>
 			</div>
+
+			{#if candidates.length > 1}
+				<div class="alts mt-3">
+					<p class="px-1 text-sm font-medium text-[var(--color-slate)]">Or did you mean…</p>
+					<div class="mt-2 space-y-2">
+						{#each candidates.slice(1) as c, i (i + 1)}
+							<div
+								class="flex items-stretch gap-2 overflow-hidden rounded-2xl border border-[var(--color-slate)]/15 bg-[var(--color-paper)] shadow-sm"
+							>
+								<button
+									class="flex-1 px-5 py-4 text-left font-display text-xl leading-snug text-[var(--color-slate)] active:bg-[var(--color-accent)]/5"
+									onclick={() => say(c)}
+									aria-label={`Say: ${c}`}>{c}</button
+								>
+								<button
+									class="flex w-14 shrink-0 items-center justify-center self-stretch border-l border-[var(--color-slate)]/15 text-xl text-[var(--color-slate)] active:bg-[var(--color-calm)]"
+									onclick={() => reject(i + 1)}
+									aria-label={`Reject: ${c}`}>✕</button
+								>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
+			<p class="mt-3 px-1 text-sm text-[var(--color-slate)]">
+				Tap the one you mean — it speaks aloud.
+			</p>
 			{#if source === 'fallback'}
-				<p class="mt-2 px-1 text-xs text-[var(--color-slate)]/70">
-					Demo mode — no API key set, so this is a literal join, not real reconstruction.
+				<p class="mt-1 px-1 text-xs text-[var(--color-slate)]/70">
+					Offline or no key, so this is a literal join, not full reconstruction.
 				</p>
 			{/if}
 		{:else if spoken}
@@ -339,7 +364,7 @@
 				<p class="text-sm font-medium text-[var(--color-go-strong)]">
 					Said aloud{spokenWithOwnVoice ? ' · in your voice' : ''}
 				</p>
-				<p class="mt-1 text-2xl font-medium text-[var(--color-ink)]">{spoken}</p>
+				<p class="mt-1 font-display text-2xl text-[var(--color-ink)]">{spoken}</p>
 			</div>
 		{/if}
 	</div>
@@ -365,3 +390,63 @@
 		{/each}
 	</div>
 </div>
+
+<style>
+	/* The "reconstructing" signal: a single accent line sweeping once, on a loop,
+	   while the model thinks. Meaningful motion, not a spinner. */
+	.think {
+		height: 3px;
+		border-radius: 999px;
+		background: color-mix(in oklab, var(--color-accent) 18%, transparent);
+		position: relative;
+		overflow: hidden;
+	}
+	.think::after {
+		content: '';
+		position: absolute;
+		top: 0;
+		bottom: 0;
+		width: 38%;
+		border-radius: 999px;
+		background: var(--color-accent);
+		animation: sweep 1.05s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+	}
+	@keyframes sweep {
+		0% {
+			transform: translateX(-110%);
+		}
+		100% {
+			transform: translateX(360%);
+		}
+	}
+
+	/* Alternatives rise in after the primary sentence has assembled. */
+	.alts {
+		animation: rise-soft 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+		animation-delay: 0.7s;
+	}
+	@keyframes rise-soft {
+		from {
+			opacity: 0;
+			transform: translateY(8px);
+		}
+		to {
+			opacity: 1;
+			transform: translateY(0);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.think::after {
+			animation: none;
+			inset: 0;
+			width: 100%;
+			opacity: 0.5;
+		}
+		.alts {
+			animation: none;
+			opacity: 1;
+			transform: none;
+		}
+	}
+</style>
