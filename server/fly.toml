@@ -1,5 +1,6 @@
 # Halfsaid API on Fly. `app` must be globally unique — `fly launch` will let you
-# rename if "halfsaid-api" is taken. Scales to zero when idle (auto_stop_machines).
+# rename if "halfsaid-api" is taken. Keeps one machine always warm so the first
+# request never hits a cold start (which would degrade the UI to the word-join).
 app = "halfsaid-api"
 primary_region = "iad"
 
@@ -10,7 +11,7 @@ primary_region = "iad"
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
   processes = ["app"]
 
 [[vm]]

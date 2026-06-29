@@ -4,7 +4,9 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "concurrently -k -n web,api -c cyan,magenta \"vite dev\" \"cd server && npm run dev\"",
+		"dev:web": "vite dev",
+		"dev:api": "cd server && npm run dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
@@ -13,6 +15,7 @@
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-vercel": "^6.3.4",
+		"concurrently": "^9.1.0",
 		"@sveltejs/kit": "^2.63.0",
 		"@sveltejs/vite-plugin-svelte": "^7.1.2",
 		"svelte": "^5.56.1",

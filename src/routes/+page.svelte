@@ -139,17 +139,15 @@
 		source = null;
 	}
 
-	// Offline / network failure: still give the person a sentence to speak. Joins
-	// the fragments locally so the board never goes dark without signal.
-	function localFallback(): string[] {
-		const joined = fragments.join(' ').trim();
-		return joined ? [joined.charAt(0).toUpperCase() + joined.slice(1) + '.'] : [];
-	}
+	// The bare words as the person tapped them — what we offer to speak when the
+	// builder can't be reached. Honest input, never dressed up as a reconstruction.
+	const rawWords = $derived(fragments.join(' ').trim());
 
-	async function build() {
-		if (!fragments.length || loading) return;
-		loading = true;
-		candidates = [];
+	// One reconstruction attempt. Returns the AI candidates, or null when the
+	// builder couldn't be reached OR couldn't reconstruct (server returned its
+	// own literal-join fallback). We deliberately treat both as failure so a
+	// word-join is NEVER shown in the confident hero slot as a finished sentence.
+	async function reconstructOnce(): Promise<string[] | null> {
 		try {
 			const res = await fetch(`${API_BASE}/api/reconstruct`, {
 				method: 'POST',
@@ -160,21 +158,34 @@
 					phrasebook
 				})
 			});
+			if (!res.ok) return null;
 			const data = await res.json();
-			if (data.candidates?.length) {
-				candidates = data.candidates;
-				source = data.source ?? null;
-			} else {
-				candidates = localFallback();
-				source = 'fallback';
-			}
+			return data.source === 'ai' && data.candidates?.length ? data.candidates : null;
 		} catch {
-			// Offline — reconstruct locally so the user can still speak.
-			candidates = localFallback();
-			source = 'fallback';
-		} finally {
-			loading = false;
+			return null;
 		}
+	}
+
+	async function build() {
+		if (!fragments.length || loading) return;
+		loading = true;
+		candidates = [];
+		source = null;
+		// Try once. On failure, wait briefly and retry a single time — the Fly
+		// backend scales to zero, so the first request after idle can hit a cold
+		// machine that's still waking. One retry covers the common cold start.
+		let result = await reconstructOnce();
+		if (!result) {
+			await new Promise((r) => setTimeout(r, 1200));
+			result = await reconstructOnce();
+		}
+		if (result) {
+			candidates = result;
+			source = 'ai';
+		} else {
+			source = 'fallback'; // unreachable / no reconstruction — shown honestly below
+		}
+		loading = false;
 	}
 
 	// Confirm: the human is the author — nothing is spoken until they tap.
@@ -331,7 +342,7 @@
 				<p class="text-lg text-[var(--color-slate)]">Reconstructing your words…</p>
 				<div class="think mt-3" aria-hidden="true"></div>
 			</div>
-		{:else if candidates.length}
+		{:else if source === 'ai' && candidates.length}
 			<!-- Primary: the sentence assembles, your words vs the AI's connective glue -->
 			<div
 				class="flex items-stretch gap-2 overflow-hidden rounded-2xl border border-[var(--color-accent)]/50 bg-[var(--color-paper)] shadow-sm"
@@ -381,11 +392,33 @@
 			<p class="mt-3 px-1 text-sm text-[var(--color-slate)]">
 				Tap the one you mean — it speaks aloud.
 			</p>
-			{#if source === 'fallback'}
-				<p class="mt-1 px-1 text-xs text-[var(--color-slate)]/70">
-					Offline or no key, so this is a literal join, not full reconstruction.
+		{:else if source === 'fallback'}
+			<!-- Honest failure: the builder didn't answer. We never pass a literal
+			     word-join off as a reconstructed sentence — instead we say so, offer
+			     a retry, and let the person speak their bare words if they need to. -->
+			<div class="rounded-2xl border border-amber-300 bg-amber-50 px-5 py-5 shadow-sm">
+				<p class="font-display text-xl text-amber-900">Couldn't reach the sentence builder</p>
+				<p class="mt-1 text-sm text-amber-800/90">
+					It didn't answer just now. Try again, or speak your words exactly as you tapped them.
 				</p>
-			{/if}
+				<div class="mt-4 flex flex-wrap gap-2">
+					<button
+						class="rounded-xl bg-[var(--color-accent)] px-5 py-3 text-base font-semibold text-white shadow-sm active:scale-[0.98]"
+						onclick={build}
+					>
+						Try again
+					</button>
+					{#if rawWords}
+						<button
+							class="rounded-xl border border-amber-400 bg-[var(--color-paper)] px-5 py-3 text-base font-medium text-amber-900 active:scale-95"
+							onclick={() => say(rawWords)}
+							aria-label={`Speak your words as tapped: ${rawWords}`}
+						>
+							Speak my words: “{rawWords}”
+						</button>
+					{/if}
+				</div>
+			</div>
 		{:else if spoken}
 			<div class="rounded-2xl border border-[var(--color-go)]/30 bg-[var(--color-go)]/5 p-5">
 				<p class="text-sm font-medium text-[var(--color-go-strong)]">
